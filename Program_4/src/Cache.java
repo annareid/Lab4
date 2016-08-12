@@ -35,28 +35,6 @@ public class Cache {
             }
         }
 
-        /*
-        // there are no free pages
-        for (int i = 0; i < pageTableLength; ++i){
-
-           // reference bit = 0; use this block
-            if(pageTable[hand].referenceBit == 0){
-                freePage = hand;
-                //advance hand
-                hand = (hand + 1) % pageTableLength;
-                return freePage;
-            }
-
-            // reference bit = 1; set it to 0; advance the hand
-            if(pageTable[hand].referenceBit == 1){
-                pageTable[hand].referenceBit = 0;
-                //advance hand
-                hand = (hand + 1) % pageTableLength;
-            }
-        }
-
-        */
-
         return -1;                                     // no free pages
     }
 
@@ -66,8 +44,11 @@ public class Cache {
         // (0,0) best page to replace
         for (int i = 0; i < pageTableLength; ++i)
         {
-            if(pageTable[i].referenceBit == 0 && pageTable[i].dirtyBit == 0){
-                return i;
+            if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 0){
+                nextVictim = hand;
+                //advance hand
+                hand = (hand + 1) % pageTableLength;
+                return nextVictim;
 
             }
         }
@@ -75,27 +56,48 @@ public class Cache {
         // (0, 1) not as quite good; need to write the page out before replacement
         for (int i = 0; i < pageTableLength; ++i)
         {
-            if(pageTable[i].referenceBit == 0 && pageTable[i].dirtyBit == 1){
-                return i;
+            if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 1){
+                nextVictim = hand;
+                //advance hand
+                hand = (hand + 1) % pageTableLength;
+                return nextVictim;
 
             }
         }
 
         // (1, 0) recently used but clean
-        for (int i = 0; i < pageTableLength; ++i)
-        {
-            if(pageTable[i].referenceBit == 1 && pageTable[i].dirtyBit == 0){
-                return i;
+        for (int i = 0; i < pageTableLength; ++i) {
+            if (pageTable[hand].referenceBit == 1 && pageTable[hand].dirtyBit == 0) {
+                pageTable[hand].referenceBit = 0;
+                //advance hand
+                hand = (hand + 1) % pageTableLength;
+
+            }
+
+            if (pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 0) {
+                nextVictim = hand;
+                //advance hand
+                hand = (hand + 1) % pageTableLength;
+                return nextVictim;
+
 
             }
         }
 
         // (1, 1) recently used and modified
-        for (int i = 0; i < pageTableLength; ++i)
-        {
-            if(pageTable[i].referenceBit == 1 && pageTable[i].dirtyBit == 1){
-                return i;
+        for (int i = 0; i < pageTableLength; ++i) {
+            if (pageTable[i].referenceBit == 1 && pageTable[i].dirtyBit == 1) {
+                pageTable[hand].referenceBit = 0;
+                //advance hand
+                hand = (hand + 1) % pageTableLength;
 
+            }
+
+            if (pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 1) {
+                nextVictim = hand;
+                //advance hand
+                hand = (hand + 1) % pageTableLength;
+                return nextVictim;
             }
         }
 
