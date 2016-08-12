@@ -66,11 +66,8 @@ public class Cache {
         // (0,0) best page to replace
         for (int i = 0; i < pageTableLength; ++i)
         {
-            if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 0){
-                nextVictim = hand;
-                //advance hand
-                hand = (hand + 1) % pageTableLength;
-                return nextVictim;
+            if(pageTable[i].referenceBit == 0 && pageTable[i].dirtyBit == 0){
+                return i;
 
             }
         }
@@ -78,11 +75,8 @@ public class Cache {
         // (0, 1) not as quite good; need to write the page out before replacement
         for (int i = 0; i < pageTableLength; ++i)
         {
-            if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 1){
-                nextVictim = hand;
-                //advance hand
-                hand = (hand + 1) % pageTableLength;
-                return nextVictim;
+            if(pageTable[i].referenceBit == 0 && pageTable[i].dirtyBit == 1){
+                return i;
 
             }
         }
