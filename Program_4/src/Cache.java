@@ -2,17 +2,29 @@ import java.util.*;
 
 public class Cache {
 
-
-    private int numberOfCacheBlocks;
+    private Entry[] pageTable;
+    private int hand;
     private int cacheBlockSize;
-    private Entry[] pageTable = new Entry[numberOfCacheBlocks];
-    private int hand = 0;
-    private int pageTableLength = pageTable.length;
+    private int pageTableLength;
+    private Vector<byte[]> cache = null;
 
     public Cache(int blockSize, int cacheBlocks) {
 
-        numberOfCacheBlocks = cacheBlocks;
+        hand = 0;
         cacheBlockSize = blockSize;
+        pageTable = new Entry[cacheBlocks];         // pageTable has an entry for each cache block
+
+        cache = new Vector<byte[]>();
+        //create a cache block
+        byte[] block = new byte[blockSize];
+
+        // add a cache block to the cache vector
+        for(int i = 0; i < cacheBlocks; i++)
+        {
+            cache.add(block);
+            pageTable[i] = new Entry();
+        }
+        pageTableLength = pageTable.length;
     }
 
     private class Entry {
@@ -20,6 +32,10 @@ public class Cache {
         int blockNumber = -1;
         byte referenceBit = 0;
         byte dirtyBit = 0;
+
+        public Entry(){
+
+        }
     }
 
 
@@ -49,7 +65,6 @@ public class Cache {
                 //advance hand
                 hand = (hand + 1) % pageTableLength;
                 return nextVictim;
-
             }
         }
 
@@ -61,7 +76,6 @@ public class Cache {
                 //advance hand
                 hand = (hand + 1) % pageTableLength;
                 return nextVictim;
-
             }
         }
 
@@ -79,8 +93,6 @@ public class Cache {
                 //advance hand
                 hand = (hand + 1) % pageTableLength;
                 return nextVictim;
-
-
             }
         }
 
@@ -105,19 +117,132 @@ public class Cache {
     }
 
     private void writeBack(int victimEntry) {
+
+        if(pageTable[victimEntry].blockNumber != -1){
+            SysLib.rawwrite(pageTable[victimEntry].blockNumber, cache.elementAt(victimEntry));
+            pageTable[victimEntry].dirtyBit = 0;
+        }
+
     }
+
 
     public synchronized boolean read(int blockId, byte buffer[]) {
-        return false;
+
+        if(blockId < 0){
+            return false;
+        }
+
+        //If the corresponding entry is in cache, read the contents from the cache
+        for (int i = 0; i < pageTableLength; i++){
+            if(pageTable[i].blockNumber == blockId)
+            {
+                byte [] tempBlock = cache.elementAt(i);
+                System.arraycopy(tempBlock, 0, buffer, 0, cacheBlockSize);
+                pageTable[i].referenceBit = 1;
+                return true;
+            }
+        }
+
+        // If the corresponding entry is not in cache
+
+        // read the block from the disk into buffer
+        SysLib.rawread(blockId, buffer);
+
+        int freePage = findFreePage();
+        if(freePage >= 0)
+        {
+            // add this block in cache
+            cache.insertElementAt(buffer, freePage);
+
+            // update pageTable with blockNumber and set reference bit = 1
+            pageTable[freePage].blockNumber = blockId;
+            pageTable[freePage].referenceBit = 1;
+            return true;
+        }
+
+        int victim = nextVictim();
+        if(victim < 0) {
+            return false;
+        }
+
+        // if the victim is dirty
+        if(pageTable[victim].dirtyBit == 1){
+            writeBack(victim);
+        }
+
+        // add this block to cache
+        cache.insertElementAt(buffer, victim);
+
+        // update pageTable with blockNumber and set reference bit = 1
+        pageTable[victim].blockNumber = blockId;
+        pageTable[victim].referenceBit = 1;
+        return true;
     }
 
+
     public synchronized boolean write(int blockId, byte buffer[]) {
-        return false;
+        if(blockId < 0){
+            return false;
+        }
+
+        //If the corresponding entry is in cache, read the contents from the cache
+        for (int i = 0; i < pageTableLength; i++){
+            if(pageTable[i].blockNumber == blockId)
+            {
+                cache.insertElementAt(buffer, i);
+                pageTable[i].referenceBit = 1;
+                pageTable[i].dirtyBit = 1;
+                return true;
+            }
+        }
+
+        int freePage = findFreePage();
+        if(freePage >= 0)
+        {
+            cache.insertElementAt(buffer, freePage);
+            pageTable[freePage].blockNumber = blockId;
+            pageTable[freePage].referenceBit = 1;
+            pageTable[freePage].dirtyBit = 1;
+            return true;
+        }
+
+        int victim = nextVictim();
+        if(victim < 0) {
+            return false;
+        }
+
+        // if the victim is dirty
+        if(pageTable[victim].dirtyBit == 1){
+            writeBack(victim);
+        }
+
+        cache.insertElementAt(buffer, victim);
+        pageTable[victim].blockNumber = blockId;
+        pageTable[victim].referenceBit = 1;
+        pageTable[victim].dirtyBit = 1;
+        return true;
+
+
     }
 
     public synchronized void sync() {
+        for(int i = 0; i < pageTableLength; i++){
+            if(pageTable[i].dirtyBit == 1){
+                writeBack(i);
+            }
+            SysLib.sync();
+        }
     }
 
     public synchronized void flush() {
+        for(int i = 0; i < pageTableLength; i++){
+            if(pageTable[i].dirtyBit == 1){
+                writeBack(i);
+            }
+            pageTable[i].referenceBit = 0;
+            pageTable[i].blockNumber = -1;
+            pageTable[i].dirtyBit = -1;
+        }
+        SysLib.sync();
     }
 }
