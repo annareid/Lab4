@@ -56,29 +56,35 @@ public class Cache {
 
     private int nextVictim() {
         int nextVictim = -1;
+        while(true){
+            // (0,0) best page to replace
+            for (int i = 0; i < pageTableLength; ++i)
+            {
+                if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 0){
+                    nextVictim = hand;
+                    //advance hand
+                    hand = (hand + 1) % pageTableLength;
+                    return nextVictim;
+                }
+            }
 
-        // (0,0) best page to replace
-        for (int i = 0; i < pageTableLength; ++i)
-        {
-            if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 0){
-                nextVictim = hand;
-                //advance hand
-                hand = (hand + 1) % pageTableLength;
-                return nextVictim;
+            // (0, 1) not as quite good; need to write the page out before replacement
+            for (int i = 0; i < pageTableLength; ++i)
+            {
+                if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 1){
+                    nextVictim = hand;
+                    //advance hand
+                    hand = (hand + 1) % pageTableLength;
+                    return nextVictim;
+                }
+                else{
+                    pageTable[hand].referenceBit = 0;
+                    hand = (hand + 1) % pageTableLength;
+                }
             }
         }
 
-        // (0, 1) not as quite good; need to write the page out before replacement
-        for (int i = 0; i < pageTableLength; ++i)
-        {
-            if(pageTable[hand].referenceBit == 0 && pageTable[hand].dirtyBit == 1){
-                nextVictim = hand;
-                //advance hand
-                hand = (hand + 1) % pageTableLength;
-                return nextVictim;
-            }
-        }
-
+/*
         // (1, 0) recently used but clean
         for (int i = 0; i < pageTableLength; ++i) {
             if (pageTable[hand].referenceBit == 1 && pageTable[hand].dirtyBit == 0) {
@@ -112,9 +118,9 @@ public class Cache {
                 return nextVictim;
             }
         }
-
-        return -1;
+*/
     }
+
 
     private void writeBack(int victimEntry) {
 
